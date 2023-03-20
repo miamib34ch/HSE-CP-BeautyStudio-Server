@@ -7,12 +7,13 @@ using HSE_CP_Server;
 using HSE_CP_Server.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
+using Swashbuckle.AspNetCore.Annotations;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(c => c.EnableAnnotations());
 builder.Services.AddAuthentication("Bearer")  // схема аутентификации - с помощью jwt-токенов
     .AddJwtBearer(options =>
     {
@@ -59,7 +60,14 @@ var options = new JsonSerializerOptions
 
 #region get
 
-app.MapGet("/login", (string login, string pass) =>
+app.MapGet("/login", 
+    [SwaggerOperation(
+        Summary = "Авторизация",
+        Description = "Авторизация в приложение по логину и паролю, вернёт токен пользователя и его роль на сервере.")]
+    [SwaggerResponse(200, "Success")]
+    [SwaggerResponse(400, "Wrong password")]
+    [SwaggerResponse(404, "There is not such person")]
+    (string login, string pass) =>
 {
     Context context = new Context();
     var user = context.Users.FirstOrDefault(u => u.Login == login);
@@ -76,11 +84,17 @@ app.MapGet("/login", (string login, string pass) =>
         token,
         role
     };
-
+ 
     return Results.Json(goodResponse, options);
 });
 
-app.MapGet("/price", () => 
+app.MapGet("/price",
+    [SwaggerOperation(
+        Summary = "Список всех процедур салона",
+        Description = "Получение всего прайса с основными данными каждой процедуры, кроме описания.")]
+    [SwaggerResponse(200, "Success")]
+    [SwaggerResponse(404, "There is not prices")]
+    () => 
 {
     Context context = new Context();
     var procedures = context.Procedure.Select(s => s);
@@ -100,7 +114,13 @@ app.MapGet("/price", () =>
         return Results.NotFound("There is not prices");
 });
 
-app.MapGet("/price/{id}", (int id) => 
+app.MapGet("/price/{id}",
+    [SwaggerOperation(
+        Summary = "Конкретная процедура",
+        Description = "Возвращает полную информацию о процедуре по её id.")]
+    [SwaggerResponse(200, "Success")]
+    [SwaggerResponse(404, "There is not procedure with this id")]
+    (int id) => 
 {
     Context context = new Context();
     var procedure = context.Procedure.FirstOrDefault(s => s.IdProcedure == id);
@@ -111,7 +131,13 @@ app.MapGet("/price/{id}", (int id) =>
         return Results.NotFound($"There is not procedure with id {id}");
 });
 
-app.MapGet("/photo", (string photoName) => 
+app.MapGet("/photo",
+    [SwaggerOperation(
+        Summary = "Получение фото с сервера",
+        Description = "Вернёт файл фотографии с сервера. В параметре нужно указать полное название файла с фотографией, полученное из описания процедуры по запросам /price или /price/{id}.")]
+    [SwaggerResponse(200, "Success")]
+    [SwaggerResponse(404, "There is not such photo")]
+    (string photoName) => 
 {
     var path = $"{Environment.CurrentDirectory}\\images\\{photoName}";
     if (File.Exists(path))
@@ -120,7 +146,15 @@ app.MapGet("/photo", (string photoName) =>
         return Results.NotFound("There is not such photo");
 });
 
-app.MapGet("/visit", [Authorize] (HttpContext context) => 
+app.MapGet("/visit",
+    [SwaggerOperation(
+        Summary = "Все посещения для конкретного пользователя",
+        Description = "Запрос для получения всех посещений у пользователя. Запрос требует указывать bearer token пользователя в заголовке.")]
+    [SwaggerResponse(200, "Success")]
+    [SwaggerResponse(401, "Not authorize")]
+    [SwaggerResponse(404, "This person don't have any visitings")]
+    [Authorize] 
+    (HttpContext context) => 
 {
     var token = context.Request.Headers.Authorization.ToString().Replace("Bearer ", "");
     Context contextDB = new Context();
@@ -129,7 +163,7 @@ app.MapGet("/visit", [Authorize] (HttpContext context) =>
     var visitings = contextDB.Visit.Where(v => v.IdClient == user.IdClient);
 
     var response = new List<ResponseVisit>();
-    if (visitings != null)
+    if (visitings.Count() > 0)
     {
         foreach (var visiting in visitings)
         {
@@ -142,7 +176,15 @@ app.MapGet("/visit", [Authorize] (HttpContext context) =>
         return Results.NotFound("This person don't have any visitings");
 });
 
-app.MapGet("/visit/{id}", [Authorize] (int id) => 
+app.MapGet("/visit/{id}",
+    [SwaggerOperation(
+        Summary = "Конкретное посещение конкретного пользователя",
+        Description = "Запрос для получения конкретного посещения у пользователя. Запрос требует указывать bearer token пользователя в заголовке.")]
+    [SwaggerResponse(200, "Success")]
+    [SwaggerResponse(401, "Not authorize")]
+    [SwaggerResponse(404, "Not found visit with this id")]
+    [Authorize] 
+    (int id) => 
 {
     Context contextDB = new Context();
 
@@ -171,7 +213,15 @@ app.MapGet("/visit/{id}", [Authorize] (int id) =>
 
 #region post
 
-app.MapPost("/registration", (string login, string pass) =>
+app.MapPost("/registration",
+    [SwaggerOperation(
+        Summary = "Регистрация",
+        Description = "Запрос на регистрацию на сервере. Пароль должен содержать большие и мальнькие буквы, цифры, специальные символы, также он должен быть больше или равен 8 символам.")]
+    [SwaggerResponse(200, "Success")]
+    [SwaggerResponse(400, "User exist yet")]
+    [SwaggerResponse(406, "Name can not be empty")]
+    [SwaggerResponse(409, "Weak password")]
+    (string login, string pass) =>
 {
     Context context = new Context();
     var user = context.Users.FirstOrDefault(u => u.Login == login);
@@ -179,6 +229,8 @@ app.MapPost("/registration", (string login, string pass) =>
         return Results.BadRequest("User exist yet");
     if (!Helper.IsPasswordValid(pass, Helper.PasswordRules.All, null) && pass.Count() < 8)
         return Results.Conflict("Weak password");
+    if (login == null || login == "")
+        return Results.StatusCode(406);
 
     // создаем JWT-токен
     var jwt = new JwtSecurityToken(
@@ -202,7 +254,14 @@ app.MapPost("/registration", (string login, string pass) =>
     return Results.Json(goodResponse, options);
 });
 
-app.MapPost("note", [Authorize] (HttpContext context, int idProcedure, string? massage, string? phone) => 
+app.MapPost("note",
+    [SwaggerOperation(
+        Summary = "Отправка запроса на звонок",
+        Description = "Отправка запроса на запись на процедуру. Запрос требует указывать bearer token пользователя в заголовке.")]
+    [SwaggerResponse(200, "Success")]
+    [SwaggerResponse(401, "Not authorize")]
+    [Authorize] 
+    (HttpContext context, int idProcedure, string? massage, string? phone) => 
 {
     //var token = context.Request.Headers.Authorization.ToString().Replace("Bearer ", "");
     //Context contextDB = new Context();
@@ -214,7 +273,16 @@ app.MapPost("note", [Authorize] (HttpContext context, int idProcedure, string? m
 
 #region put
 
-app.MapPut("/update", [Authorize] (HttpContext context, string? pass, string? phone) => 
+app.MapPut("/update",
+    [SwaggerOperation(
+        Summary = "Обновить пароль или телефон",
+        Description = "Обновление данных: пароля или номера телефона. Пароль должен содержать большие и мальнькие буквы, цифры, специальные символы, также он должен быть больше или равен 8 символам. Номер телефона должен быть российским. Запрос требует указывать bearer token пользователя в заголовке.")]
+    [SwaggerResponse(200, "Success")]
+    [SwaggerResponse(400, "No okay phone number")]
+    [SwaggerResponse(401, "Not authorize")]
+    [SwaggerResponse(409, "Weak password")]
+    [Authorize] 
+    (HttpContext context, string? pass, string? phone) => 
 {
     var token = context.Request.Headers.Authorization.ToString().Replace("Bearer ", "");
 
@@ -251,7 +319,14 @@ app.MapPut("/update", [Authorize] (HttpContext context, string? pass, string? ph
 
 #region delete
 
-app.MapDelete("/delete", [Authorize] (HttpContext context) => 
+app.MapDelete("/delete",
+    [SwaggerOperation(
+        Summary = "Удаление аккаунта",
+        Description = "Удалит с сервера следующие данные: логин, пароль, bearer token, данные для уведомлений. Запрос требует указывать bearer token пользователя в заголовке.")]
+    [SwaggerResponse(200, "Success")]
+    [SwaggerResponse(401, "Not authorize")]
+    [Authorize] 
+    (HttpContext context) => 
 {
     var token = context.Request.Headers.Authorization.ToString().Replace("Bearer ", "");
     Context contextDB = new Context();
