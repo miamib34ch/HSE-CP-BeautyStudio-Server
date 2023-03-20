@@ -1,4 +1,5 @@
 using System.IdentityModel.Tokens.Jwt;
+using System.Net.Mime;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -142,7 +143,10 @@ app.MapGet("/photo",
 {
     var path = $"{Environment.CurrentDirectory}\\images\\{photoName}";
     if (File.Exists(path))
-        return Results.File(path);
+    {
+        FileStream fileStream = new FileStream(path, FileMode.Open);
+        return Results.File(fileStream, "image/jpeg", photoName);
+    }
     else
         return Results.NotFound("There is not such photo");
 });
