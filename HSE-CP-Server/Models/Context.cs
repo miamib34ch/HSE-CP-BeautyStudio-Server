@@ -16,12 +16,12 @@ namespace HSE_CP_Server.Models
         public DbSet<ProcedureClient> ProcedureClient { get; set; }
         public DbSet<Procedure> Procedure { get; set; }
         public DbSet<UserDevices> UserDevices { get; set; }
+        public DbSet<ProcedureCategorie> ProcedureCategorie { get; set; }
         //public DbSet<Skin> Skin { get; set; }
         //public DbSet<Method> Method { get; set; }
         //public DbSet<Needle> Needle { get; set; }
         //public DbSet<Pigments> Pigments { get; set; }
         //public DbSet<PigmentsInProcedures> PigmentsInProcedures { get; set; }
-        //public DbSet<ProcedureCategorie> ProcedureCategorie { get; set; }
 
         public Context()
         {

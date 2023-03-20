@@ -183,70 +183,6 @@ namespace HSE_CP_Server.Models
             this.IdCategorie = IdCategorie;
         }
     }
-/*
-    public class Skin
-    {
-        [Key]
-        public int IdSkin { get; set; }
-        public string SkinName { get; set; }
-        public Skin(int IdSkin, string SkinName)
-        {
-            this.IdSkin = IdSkin;
-            this.SkinName = SkinName;
-        }
-    }
-
-    public class Method
-    {
-        [Key]
-        public int IdMethod { get; set; }
-        public string MethodName { get; set; }
-
-        public Method(int IdMethod, string MethodName)
-        {
-            this.IdMethod = IdMethod;
-            this.MethodName = MethodName;
-        }
-    }
-
-    public class Needle
-    {
-        [Key]
-        public int IdNeedle { get; set; }
-        public string NeedleName { get; set; }
-
-        public Needle(int IdNeedle, string NeedleName)
-        {
-            this.IdNeedle = IdNeedle;
-            this.NeedleName = NeedleName;
-        }
-    }
-
-    public class Pigments
-    {
-        [Key]
-        public int IdPigments { get; set; }
-        public string PigmentsName { get; set; }
-
-        public Pigments(int IdPigments, string PigmentsName)
-        {
-            this.IdPigments = IdPigments;
-            this.PigmentsName = PigmentsName;
-        }
-    }
-
-    [PrimaryKey(nameof(IdPigments), nameof(IdProcedureClient))]
-    public class PigmentsInProcedures
-    {
-        public int IdPigments { get; set; }
-        public int IdProcedureClient { get; set; }
-
-        public PigmentsInProcedures(int IdPigments, int IdProcedureClient)
-        {
-            this.IdPigments = IdPigments;
-            this.IdProcedureClient = IdProcedureClient;
-        }
-    }
 
     public class ProcedureCategorie
     {
@@ -260,5 +196,69 @@ namespace HSE_CP_Server.Models
             this.NameCategorie = NameCategorie;
         }
     }
-*/
+    /*
+        public class Skin
+        {
+            [Key]
+            public int IdSkin { get; set; }
+            public string SkinName { get; set; }
+            public Skin(int IdSkin, string SkinName)
+            {
+                this.IdSkin = IdSkin;
+                this.SkinName = SkinName;
+            }
+        }
+
+        public class Method
+        {
+            [Key]
+            public int IdMethod { get; set; }
+            public string MethodName { get; set; }
+
+            public Method(int IdMethod, string MethodName)
+            {
+                this.IdMethod = IdMethod;
+                this.MethodName = MethodName;
+            }
+        }
+
+        public class Needle
+        {
+            [Key]
+            public int IdNeedle { get; set; }
+            public string NeedleName { get; set; }
+
+            public Needle(int IdNeedle, string NeedleName)
+            {
+                this.IdNeedle = IdNeedle;
+                this.NeedleName = NeedleName;
+            }
+        }
+
+        public class Pigments
+        {
+            [Key]
+            public int IdPigments { get; set; }
+            public string PigmentsName { get; set; }
+
+            public Pigments(int IdPigments, string PigmentsName)
+            {
+                this.IdPigments = IdPigments;
+                this.PigmentsName = PigmentsName;
+            }
+        }
+
+        [PrimaryKey(nameof(IdPigments), nameof(IdProcedureClient))]
+        public class PigmentsInProcedures
+        {
+            public int IdPigments { get; set; }
+            public int IdProcedureClient { get; set; }
+
+            public PigmentsInProcedures(int IdPigments, int IdProcedureClient)
+            {
+                this.IdPigments = IdPigments;
+                this.IdProcedureClient = IdProcedureClient;
+            }
+        }
+    */
 }

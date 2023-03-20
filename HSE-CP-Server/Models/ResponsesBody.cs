@@ -9,15 +9,15 @@ namespace HSE_CP_Server.Models
         public double Cost { get; set; }
         public string? PhotoName { get; set; }
         public string ProcedureName { get; set; }
-        public int IdCategorie { get; set; }
+        public string Categorie { get; set; }
 
-        public ResponsePrice(int IdProcedure, double Cost, string? PhotoName, string ProcedureName, int IdCategorie)
+        public ResponsePrice(int IdProcedure, double Cost, string? PhotoName, string ProcedureName, string Categorie)
         {
             this.IdProcedure = IdProcedure;
             this.Cost = Cost;
             this.ProcedureName = ProcedureName;
             this.PhotoName = PhotoName;
-            this.IdCategorie = IdCategorie;
+            this.Categorie = Categorie;
         }
     }
 

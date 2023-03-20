@@ -105,7 +105,8 @@ app.MapGet("/price",
     {
         foreach (var procedure in procedures)
         {
-            var responsePrice = new ResponsePrice(procedure.IdProcedure, procedure.Cost, procedure.PhotoName, procedure.ProcedureName, procedure.IdCategorie);
+            var categorieName = context.ProcedureCategorie.First(p => p.IdCategorie == procedure.IdCategorie).NameCategorie;
+            var responsePrice = new ResponsePrice(procedure.IdProcedure, procedure.Cost, procedure.PhotoName, procedure.ProcedureName, categorieName);
             response.Add(responsePrice);
         }
         return Results.Json(response, options);
