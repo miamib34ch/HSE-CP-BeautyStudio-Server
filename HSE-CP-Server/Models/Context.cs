@@ -1,11 +1,12 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
 using System.Reflection.Metadata;
 
 namespace HSE_CP_Server.Models
 {
     public class Context: DbContext
     {
-        public string DbPath { get; }
+        public SqliteConnection DbPath { get; }
 
         public DbSet<Users> Users { get; set; }
         public DbSet<Role> Role { get; set; }
@@ -25,10 +26,16 @@ namespace HSE_CP_Server.Models
 
         public Context()
         {
-            DbPath = $"{Environment.CurrentDirectory}\\BeautyStudio.db";
+            var connectionString = new SqliteConnectionStringBuilder
+            {
+                DataSource = $"{Environment.CurrentDirectory}\\BeautyStudio.db", // путь к базе данных
+                Password = "test" // пароль от базы данных
+            };
+            DbPath = new SqliteConnection(connectionString.ToString());
         }
         protected override void OnConfiguring(DbContextOptionsBuilder options)
-        => options.UseSqlite($"Data Source={DbPath}");
-
+        {
+            options.UseSqlite(DbPath);
+        }
     }
 }
