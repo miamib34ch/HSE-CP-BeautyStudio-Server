@@ -89,6 +89,30 @@ app.MapGet("/login",
     return Results.Json(goodResponse, options);
 });
 
+app.MapGet("/phone",
+    [SwaggerOperation(
+        Summary = "Получить номер телефона клиента",
+        Description = "Если у клиента есть в базе данных телефон, то вернёт его. Запрос требует указывать bearer token пользователя в заголовке.")]
+    [SwaggerResponse(200, "Success")]
+    [SwaggerResponse(401, "Not authorize")]
+    [SwaggerResponse(404, "There is no phone")]
+    [Authorize]
+    (HttpContext context) =>
+    {
+        var token = context.Request.Headers.Authorization.ToString().Replace("Bearer ", "");
+        Context contextDB = new Context();
+
+        var user = contextDB.Users.First(u => u.Token == token);
+        var client = contextDB.Clients.FirstOrDefault(c => c.IdClient == user.IdClient);
+        if (client == null)
+            return Results.NotFound("There is no phone");
+        var phone = client.PhoneNumber;
+        if (phone == null)
+            return Results.NotFound("There is no phone");
+
+        return Results.Json(phone, options);
+    });
+
 app.MapGet("/price",
     [SwaggerOperation(
         Summary = "Список всех процедур салона",
