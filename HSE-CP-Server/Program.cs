@@ -131,7 +131,7 @@ app.MapGet("/price",
         foreach (var procedure in procedures)
         {
             var categorieName = context.ProcedureCategorie.First(p => p.IdCategorie == procedure.IdCategorie).NameCategorie;
-            var responsePrice = new ResponsePrice(procedure.IdProcedure, procedure.Cost, procedure.PhotoName, procedure.ProcedureName, categorieName);
+            var responsePrice = new ResponsePrice(procedure.IdProcedure, procedure.Cost, procedure.PhotoName, procedure.ProcedureName);
             response.Add(responsePrice);
         }
         return Results.Json(response, options);
@@ -256,7 +256,7 @@ app.MapPost("/registration",
     var user = context.Users.FirstOrDefault(u => u.Login == login);
     if (user != null)
         return Results.BadRequest("User exist yet");
-    if (!Helper.IsPasswordValid(pass, Helper.PasswordRules.All, null) && pass.Count() < 8)
+    if (!Helper.IsPasswordValid(pass, Helper.PasswordRules.All, null) || pass.Count() < 8)
         return Results.Conflict("Weak password");
     if (login == null || login == "")
         return Results.StatusCode(406);
@@ -290,7 +290,7 @@ app.MapPost("note",
     [SwaggerResponse(200, "Success")]
     [SwaggerResponse(401, "Not authorize")]
     [Authorize] 
-    (HttpContext context, int idProcedure, string? massage, string? phone) => 
+    (HttpContext context, string ProcedureName, string? massage, string? phone) => 
 {
     //var token = context.Request.Headers.Authorization.ToString().Replace("Bearer ", "");
     //Context contextDB = new Context();
@@ -321,7 +321,7 @@ app.MapPut("/update",
 
     if (pass != null) 
     {
-        if (!Helper.IsPasswordValid(pass, Helper.PasswordRules.All, null) && pass.Count() < 8)
+        if (!Helper.IsPasswordValid(pass, Helper.PasswordRules.All, null) || pass.Count() < 8)
             return Results.Conflict("Weak password");
         user.Password = pass;
         contextDB.Users.Update(user);
