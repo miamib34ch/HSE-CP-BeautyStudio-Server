@@ -333,6 +333,12 @@ app.MapPut("/update",
             return Results.Conflict("Weak password");
         user.Password = pass;
         contextDB.Users.Update(user);
+        if (phone == null)
+        {
+            contextDB.SaveChanges();
+            return Results.Ok("Data updated");
+        }
+
     }
     
     var client = contextDB.Clients.FirstOrDefault(c => c.IdClient == user.IdClient);
