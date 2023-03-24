@@ -288,14 +288,21 @@ app.MapPost("note",
         Summary = "Отправка запроса на звонок",
         Description = "Отправка запроса на запись на процедуру. Запрос требует указывать bearer token пользователя в заголовке.")]
     [SwaggerResponse(200, "Success")]
+    [SwaggerResponse(400, "Not okay phone number")]
     [SwaggerResponse(401, "Not authorize")]
     [Authorize] 
-    (HttpContext context, string ProcedureName, string? massage, string? phone) => 
+    (HttpContext context, string ProcedureName, string phone, string? massage) => 
 {
+    string motif = @"^((8|\+7)[\- ]?)?(\(?\d{3}\)?[\- ]?)?[\d\- ]{7,10}$";
+    if (!Regex.IsMatch(phone, motif))
+        return Results.BadRequest("No okay phone number");
+
     //var token = context.Request.Headers.Authorization.ToString().Replace("Bearer ", "");
     //Context contextDB = new Context();
 
     //var user = contextDB.Users.First(u => u.Token == token);
+
+    return Results.Ok("Запрос принят");
 });
 
 #endregion
