@@ -317,6 +317,7 @@ app.MapPut("/update",
     [SwaggerResponse(400, "No okay phone number")]
     [SwaggerResponse(401, "Not authorize")]
     [SwaggerResponse(409, "Weak password")]
+    [SwaggerResponse(423, "Only for clients")]
     [Authorize] 
     (HttpContext context, string? pass, string? phone) => 
 {
@@ -336,7 +337,8 @@ app.MapPut("/update",
     
     var client = contextDB.Clients.FirstOrDefault(c => c.IdClient == user.IdClient);
     if (client != null)
-        if (phone != null) 
+    {
+        if (phone != null)
         {
             string motif = @"^((8|\+7)[\- ]?)?(\(?\d{3}\)?[\- ]?)?[\d\- ]{7,10}$";
             if (!Regex.IsMatch(phone, motif))
@@ -345,7 +347,11 @@ app.MapPut("/update",
             client.PhoneNumber = phone;
             contextDB.Clients.Update(client);
         }
-
+    }
+    else
+    {
+        return Results.StatusCode(423);
+    }
     contextDB.SaveChanges();   
 
     return Results.Ok("Data updated");
