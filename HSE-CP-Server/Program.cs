@@ -1,5 +1,4 @@
 using System.IdentityModel.Tokens.Jwt;
-using System.Net.Mime;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -8,13 +7,29 @@ using HSE_CP_Server;
 using HSE_CP_Server.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 using Swashbuckle.AspNetCore.Annotations;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(c => c.EnableAnnotations());
+builder.Services.AddSwaggerGen(c =>
+{
+
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT"
+    });
+
+    // добавление фильтра операций для добавления атрибута Authorize к операциям, требующим авторизации
+    c.OperationFilter<AuthorizeCheckOperationFilter>();
+
+    c.EnableAnnotations();
+}
+);
 builder.Services.AddAuthentication("Bearer")  // схема аутентификации - с помощью jwt-токенов
     .AddJwtBearer(options =>
     {
@@ -59,45 +74,114 @@ var options = new JsonSerializerOptions
     WriteIndented = true
 };
 
-#region get
+#region post
 
-app.MapGet("/login", 
+app.MapPost("/login",
     [SwaggerOperation(
         Summary = "Авторизация",
         Description = "Авторизация в приложение по логину и паролю, вернёт токен пользователя и его роль на сервере.")]
-    [SwaggerResponse(200, "Success")]
-    [SwaggerResponse(400, "Wrong password")]
-    [SwaggerResponse(404, "There is not such person")]
-    (string login, string pass) =>
-{
-    Context context = new Context();
-    var user = context.Users.FirstOrDefault(u => u.Login == login);
-    if (user == null) 
-        return Results.NotFound("There is not such person");
-    if (user.Password != pass)
-        return Results.BadRequest("Wrong password");
-
-    var role = context.Role.First(r => r.IdRole == user.Role).RoleName;
-    var token = user.Token;
-
-    var goodResponse = new
+[SwaggerResponse(200, "Success")]
+[SwaggerResponse(400, "Wrong password")]
+[SwaggerResponse(404, "There is not such person")]
+(string login, string pass) =>
     {
-        token,
-        role
-    };
- 
-    return Results.Json(goodResponse, options);
-});
+        Context context = new Context();
+        var user = context.Users.FirstOrDefault(u => u.Login == login);
+        if (user == null)
+            return Results.NotFound("There is not such person");
+        if (!Helpers.VerifyPassword(pass, user.Password))
+            return Results.BadRequest("Wrong password");
+
+        var role = context.Role.First(r => r.IdRole == user.Role).RoleName;
+        var token = user.Token;
+
+        var goodResponse = new
+        {
+            token,
+            role
+        };
+
+        return Results.Json(goodResponse, options);
+    });
+
+app.MapPost("/registration",
+    [SwaggerOperation(
+        Summary = "Регистрация",
+        Description = "Запрос на регистрацию на сервере. Пароль должен содержать большие и мальнькие буквы, цифры, специальные символы, также он должен быть больше или равен 8 символам.")]
+[SwaggerResponse(200, "Success")]
+[SwaggerResponse(400, "User exist yet")]
+[SwaggerResponse(406, "Name can not be empty")]
+[SwaggerResponse(409, "Weak password")]
+(string login, string pass) =>
+    {
+        Context context = new Context();
+        var user = context.Users.FirstOrDefault(u => u.Login == login);
+        if (user != null)
+            return Results.BadRequest("User exist yet");
+        if (!Helpers.IsPasswordValid(pass, Helpers.PasswordRules.All, null) || pass.Count() < 8)
+            return Results.Conflict("Weak password");
+        if (login == null || login == "")
+            return Results.StatusCode(406);
+
+        // создаем JWT-токен
+        var jwt = new JwtSecurityToken(
+                issuer: AuthOptions.ISSUER,
+                audience: AuthOptions.AUDIENCE,
+                expires: DateTime.UtcNow.Add(TimeSpan.FromDays(AuthOptions.LIFETIME)),
+                signingCredentials: new SigningCredentials(AuthOptions.GetSymmetricSecurityKey(), SecurityAlgorithms.HmacSha256));
+
+        var token = new JwtSecurityTokenHandler().WriteToken(jwt);
+
+        var User = new Users(login, Helpers.HashPassword(pass), null, 2, token);
+        context.Users.Add(User);
+        context.SaveChanges();
+
+        var goodResponse = new
+        {
+            token = token,
+            role = "client",
+        };
+
+        return Results.Json(goodResponse, options);
+    });
+
+app.MapPost("note",
+    [SwaggerOperation(
+        Summary = "Отправка запроса на звонок",
+        Description = "Отправка запроса на запись на процедуру. Запрос требует указывать bearer token пользователя в заголовке.")]
+[SwaggerResponse(200, "Success")]
+[SwaggerResponse(400, "Not okay phone number")]
+[SwaggerResponse(401, "Not authorize")]
+[Authorize]
+(HttpContext context, string ProcedureName, string phone, string? massage) =>
+    {
+        string motif = @"^((8|\+7)[\- ]?)?(\(?\d{3}\)?[\- ]?)?[\d\- ]{7,10}$";
+        if (!Regex.IsMatch(phone, motif))
+            return Results.BadRequest("No okay phone number");
+
+        //var token = context.Request.Headers.Authorization.ToString().Replace("Bearer ", "");
+        //Context contextDB = new Context();
+
+        //var user = contextDB.Users.First(u => u.Token == token);
+
+        var result = new { msg = "Запрос принят" };
+
+        return Results.Json(result, options);
+    });
+
+#endregion
+
+#region get
 
 app.MapGet("/phone",
     [SwaggerOperation(
         Summary = "Получить номер телефона клиента",
         Description = "Если у клиента есть в базе данных телефон, то вернёт его. Запрос требует указывать bearer token пользователя в заголовке.")]
-    [SwaggerResponse(200, "Success")]
-    [SwaggerResponse(401, "Not authorize")]
-    [SwaggerResponse(404, "There is no phone")]
-    [Authorize]
-    (HttpContext context) =>
+[SwaggerResponse(200, "Success")]
+[SwaggerResponse(401, "Not authorize")]
+[SwaggerResponse(404, "There is no phone")]
+[Authorize]
+(HttpContext context) =>
     {
         var token = context.Request.Headers.Authorization.ToString().Replace("Bearer ", "");
         Context contextDB = new Context();
@@ -110,16 +194,21 @@ app.MapGet("/phone",
         if (phone == null)
             return Results.NotFound("There is no phone");
 
-        return Results.Json(phone, options);
+        var result = new
+        {
+            phone
+        };
+
+        return Results.Json(result, options);
     });
 
 app.MapGet("/price",
     [SwaggerOperation(
         Summary = "Список всех процедур салона",
         Description = "Получение всего прайса с основными данными каждой процедуры, кроме описания.")]
-    [SwaggerResponse(200, "Success")]
-    [SwaggerResponse(404, "There is not prices")]
-    () => 
+[SwaggerResponse(200, "Success")]
+[SwaggerResponse(404, "There is not prices")]
+() =>
 {
     Context context = new Context();
     var procedures = context.Procedure.Select(s => s);
@@ -144,9 +233,9 @@ app.MapGet("/price/{id}",
     [SwaggerOperation(
         Summary = "Конкретная процедура",
         Description = "Возвращает полную информацию о процедуре по её id.")]
-    [SwaggerResponse(200, "Success")]
-    [SwaggerResponse(404, "There is not procedure with this id")]
-    (int id) => 
+[SwaggerResponse(200, "Success")]
+[SwaggerResponse(404, "There is not procedure with this id")]
+(int id) =>
 {
     Context context = new Context();
     var procedure = context.Procedure.FirstOrDefault(s => s.IdProcedure == id);
@@ -161,11 +250,11 @@ app.MapGet("/photo",
     [SwaggerOperation(
         Summary = "Получение фото с сервера",
         Description = "Вернёт файл фотографии с сервера. В параметре нужно указать полное название файла с фотографией, полученное из описания процедуры по запросам /price или /price/{id}.")]
-    [SwaggerResponse(200, "Success")]
-    [SwaggerResponse(404, "There is not such photo")]
-    (string photoName) => 
+[SwaggerResponse(200, "Success")]
+[SwaggerResponse(404, "There is not such photo")]
+(string photoName) =>
 {
-    var path = $"{Environment.CurrentDirectory}\\images\\{photoName}";
+    var path = $"{Environment.CurrentDirectory}\\Images\\{photoName}";
     if (File.Exists(path))
     {
         FileStream fileStream = new FileStream(path, FileMode.Open);
@@ -179,11 +268,11 @@ app.MapGet("/visit",
     [SwaggerOperation(
         Summary = "Все посещения для конкретного пользователя",
         Description = "Запрос для получения всех посещений у пользователя. Запрос требует указывать bearer token пользователя в заголовке.")]
-    [SwaggerResponse(200, "Success")]
-    [SwaggerResponse(401, "Not authorize")]
-    [SwaggerResponse(404, "This person don't have any visitings")]
-    [Authorize] 
-    (HttpContext context) => 
+[SwaggerResponse(200, "Success")]
+[SwaggerResponse(401, "Not authorize")]
+[SwaggerResponse(404, "This person don't have any visitings")]
+[Authorize]
+(HttpContext context) =>
 {
     var token = context.Request.Headers.Authorization.ToString().Replace("Bearer ", "");
     Context contextDB = new Context();
@@ -209,11 +298,11 @@ app.MapGet("/visit/{id}",
     [SwaggerOperation(
         Summary = "Конкретное посещение конкретного пользователя",
         Description = "Запрос для получения конкретного посещения у пользователя. Запрос требует указывать bearer token пользователя в заголовке.")]
-    [SwaggerResponse(200, "Success")]
-    [SwaggerResponse(401, "Not authorize")]
-    [SwaggerResponse(404, "Not found visit with this id")]
-    [Authorize] 
-    (int id) => 
+[SwaggerResponse(200, "Success")]
+[SwaggerResponse(401, "Not authorize")]
+[SwaggerResponse(404, "Not found visit with this id")]
+[Authorize]
+(int id) =>
 {
     Context contextDB = new Context();
 
@@ -240,86 +329,19 @@ app.MapGet("/visit/{id}",
 
 #endregion
 
-#region post
-
-app.MapPost("/registration",
-    [SwaggerOperation(
-        Summary = "Регистрация",
-        Description = "Запрос на регистрацию на сервере. Пароль должен содержать большие и мальнькие буквы, цифры, специальные символы, также он должен быть больше или равен 8 символам.")]
-    [SwaggerResponse(200, "Success")]
-    [SwaggerResponse(400, "User exist yet")]
-    [SwaggerResponse(406, "Name can not be empty")]
-    [SwaggerResponse(409, "Weak password")]
-    (string login, string pass) =>
-{
-    Context context = new Context();
-    var user = context.Users.FirstOrDefault(u => u.Login == login);
-    if (user != null)
-        return Results.BadRequest("User exist yet");
-    if (!Helper.IsPasswordValid(pass, Helper.PasswordRules.All, null) || pass.Count() < 8)
-        return Results.Conflict("Weak password");
-    if (login == null || login == "")
-        return Results.StatusCode(406);
-
-    // создаем JWT-токен
-    var jwt = new JwtSecurityToken(
-            issuer: AuthOptions.ISSUER,
-            audience: AuthOptions.AUDIENCE,
-            expires: DateTime.UtcNow.Add(TimeSpan.FromDays(AuthOptions.LIFETIME)),
-            signingCredentials: new SigningCredentials(AuthOptions.GetSymmetricSecurityKey(), SecurityAlgorithms.HmacSha256));
-
-    var token = new JwtSecurityTokenHandler().WriteToken(jwt);
-
-    var User = new Users(login, pass, null, 2, token);
-    context.Users.Add(User);
-    context.SaveChanges();
-
-    var goodResponse = new
-    {
-        token = token,
-        role = "client",
-    };
-
-    return Results.Json(goodResponse, options);
-});
-
-app.MapPost("note",
-    [SwaggerOperation(
-        Summary = "Отправка запроса на звонок",
-        Description = "Отправка запроса на запись на процедуру. Запрос требует указывать bearer token пользователя в заголовке.")]
-    [SwaggerResponse(200, "Success")]
-    [SwaggerResponse(400, "Not okay phone number")]
-    [SwaggerResponse(401, "Not authorize")]
-    [Authorize] 
-    (HttpContext context, string ProcedureName, string phone, string? massage) => 
-{
-    string motif = @"^((8|\+7)[\- ]?)?(\(?\d{3}\)?[\- ]?)?[\d\- ]{7,10}$";
-    if (!Regex.IsMatch(phone, motif))
-        return Results.BadRequest("No okay phone number");
-
-    //var token = context.Request.Headers.Authorization.ToString().Replace("Bearer ", "");
-    //Context contextDB = new Context();
-
-    //var user = contextDB.Users.First(u => u.Token == token);
-
-    return Results.Ok("Запрос принят");
-});
-
-#endregion
-
 #region put
 
 app.MapPut("/update",
     [SwaggerOperation(
         Summary = "Обновить пароль или телефон",
         Description = "Обновление данных: пароля или номера телефона. Пароль должен содержать большие и мальнькие буквы, цифры, специальные символы, также он должен быть больше или равен 8 символам. Номер телефона должен быть российским. Запрос требует указывать bearer token пользователя в заголовке.")]
-    [SwaggerResponse(200, "Success")]
-    [SwaggerResponse(400, "No okay phone number")]
-    [SwaggerResponse(401, "Not authorize")]
-    [SwaggerResponse(409, "Weak password")]
-    [SwaggerResponse(423, "Only for clients")]
-    [Authorize] 
-    (HttpContext context, string? pass, string? phone) => 
+[SwaggerResponse(200, "Success")]
+[SwaggerResponse(400, "No okay phone number")]
+[SwaggerResponse(401, "Not authorize")]
+[SwaggerResponse(409, "Weak password")]
+[SwaggerResponse(423, "Only for clients")]
+[Authorize]
+(HttpContext context, string? pass, string? phone) =>
 {
     var token = context.Request.Headers.Authorization.ToString().Replace("Bearer ", "");
 
@@ -327,20 +349,23 @@ app.MapPut("/update",
 
     var user = contextDB.Users.First(u => u.Token == token);
 
-    if (pass != null) 
+    var result = new { msg = "Data updated" };
+
+    if (pass != null)
     {
-        if (!Helper.IsPasswordValid(pass, Helper.PasswordRules.All, null) || pass.Count() < 8)
+        if (!Helpers.IsPasswordValid(pass, Helpers.PasswordRules.All, null) || pass.Count() < 8)
             return Results.Conflict("Weak password");
-        user.Password = pass;
+        user.Password = Helpers.HashPassword(pass);
         contextDB.Users.Update(user);
         if (phone == null)
         {
             contextDB.SaveChanges();
-            return Results.Ok("Data updated");
+
+            return Results.Json(result,options);
         }
 
     }
-    
+
     var client = contextDB.Clients.FirstOrDefault(c => c.IdClient == user.IdClient);
     if (client != null)
     {
@@ -358,9 +383,9 @@ app.MapPut("/update",
     {
         return Results.StatusCode(423);
     }
-    contextDB.SaveChanges();   
+    contextDB.SaveChanges();
 
-    return Results.Ok("Data updated");
+    return Results.Json(result,options);
 });
 
 #endregion
@@ -371,10 +396,10 @@ app.MapDelete("/delete",
     [SwaggerOperation(
         Summary = "Удаление аккаунта",
         Description = "Удалит с сервера следующие данные: логин, пароль, bearer token, данные для уведомлений. Запрос требует указывать bearer token пользователя в заголовке.")]
-    [SwaggerResponse(200, "Success")]
-    [SwaggerResponse(401, "Not authorize")]
-    [Authorize] 
-    (HttpContext context) => 
+[SwaggerResponse(200, "Success")]
+[SwaggerResponse(401, "Not authorize")]
+[Authorize]
+(HttpContext context) =>
 {
     var token = context.Request.Headers.Authorization.ToString().Replace("Bearer ", "");
     Context contextDB = new Context();
@@ -387,7 +412,9 @@ app.MapDelete("/delete",
     contextDB.Users.Remove(user);
     contextDB.SaveChanges();
 
-    return Results.Ok("User deleted");
+    var result = new { msg = "User deleted" };
+
+    return Results.Json(result);
 });
 
 #endregion

@@ -1,6 +1,9 @@
-﻿namespace HSE_CP_Server
+﻿using System.Security.Cryptography;
+using System.Text;
+
+namespace HSE_CP_Server
 {
-    public class Helper
+    public class Helpers
     {
         [Flags]
         public enum PasswordRules
@@ -57,6 +60,46 @@
                     result &= (password != ruleOutList[i]);
 
             return result;
+        }
+
+        public static string HashPassword(string password)
+        {
+            using (SHA256 sha256Hash = SHA256.Create())
+            {
+                byte[] bytes = sha256Hash.ComputeHash(Encoding.UTF8.GetBytes(password));
+
+                StringBuilder builder = new StringBuilder();
+                for (int i = 0; i < bytes.Length; i++)
+                {
+                    builder.Append(bytes[i].ToString("x2"));
+                }
+                return builder.ToString();
+            }
+        }
+
+        public static bool VerifyPassword(string password, string hash)
+        {
+            byte[] bytes = Encoding.UTF8.GetBytes(password);
+
+            using (SHA256 sha256Hash = SHA256.Create())
+            {
+                byte[] hashBytes = sha256Hash.ComputeHash(bytes);
+
+                byte[] inputHashBytes = StringToByteArray(hash);
+
+                return CryptographicOperations.FixedTimeEquals(hashBytes, inputHashBytes);
+            }
+        }
+
+        private static byte[] StringToByteArray(string hex)
+        {
+            int length = hex.Length / 2;
+            byte[] bytes = new byte[length];
+            for (int i = 0; i < length; i++)
+            {
+                bytes[i] = Convert.ToByte(hex.Substring(i * 2, 2), 16);
+            }
+            return bytes;
         }
     }
 }
