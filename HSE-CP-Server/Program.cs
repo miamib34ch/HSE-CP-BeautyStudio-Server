@@ -112,8 +112,10 @@ app.MapPost("/registration",
 [SwaggerResponse(400, "User exist yet")]
 [SwaggerResponse(406, "Name can not be empty")]
 [SwaggerResponse(409, "Weak password")]
-(string login, string pass) =>
+([SwaggerRequestBody(Required = true)] User newUser) =>
     {
+        String login = newUser.login;
+        String pass = newUser.pass;
         Context context = new Context();
         var user = context.Users.FirstOrDefault(u => u.Login == login);
         if (user != null)
