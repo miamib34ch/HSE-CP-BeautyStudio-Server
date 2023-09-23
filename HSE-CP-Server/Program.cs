@@ -83,8 +83,10 @@ app.MapPost("/login",
 [SwaggerResponse(200, "Success")]
 [SwaggerResponse(400, "Wrong password")]
 [SwaggerResponse(404, "There is not such person")]
-(string login, string pass) =>
+([SwaggerRequestBody(Required = true)] User existUser) =>
     {
+        String login = existUser.login;
+        String pass = existUser.pass;
         Context context = new Context();
         var user = context.Users.FirstOrDefault(u => u.Login == login);
         if (user == null)
