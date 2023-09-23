@@ -6,4 +6,5 @@
 
 Приложение использует swagger для описания запросов: 
 
-![image](https://user-images.githubusercontent.com/77894393/226447997-a5563fee-7141-4b31-a0e6-b1ee2f979b81.png)
+![image](https://github.com/miamib34ch/HSE-CP-Server/assets/77894393/52ff202b-019a-4dd6-8505-93342c34264d)
+
