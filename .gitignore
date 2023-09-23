@@ -361,3 +361,5 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+/HSE-CP-Server/BeautyStudio.db
+/HSE-CP-Server/Properties/launchSettings.json
