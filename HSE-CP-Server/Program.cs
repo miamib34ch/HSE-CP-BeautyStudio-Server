@@ -8,6 +8,7 @@ using HSE_CP_Server.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Newtonsoft.Json;
 using Swashbuckle.AspNetCore.Annotations;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -345,7 +346,7 @@ app.MapPut("/update",
 [SwaggerResponse(409, "Weak password")]
 [SwaggerResponse(423, "Only for clients")]
 [Authorize]
-(HttpContext context, string? pass, string? phone) =>
+([SwaggerRequestBody(Required = true)] UpdateUser httpBody, HttpContext context) =>
 {
     var token = context.Request.Headers.Authorization.ToString().Replace("Bearer ", "");
 
@@ -354,6 +355,9 @@ app.MapPut("/update",
     var user = contextDB.Users.First(u => u.Token == token);
 
     var result = new { msg = "Data updated" };
+
+    var pass = httpBody.pass;
+    var phone = httpBody.phone;
 
     if (pass != null)
     {
