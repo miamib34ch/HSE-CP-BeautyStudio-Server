@@ -9,4 +9,3 @@
 Приложение использует swagger для описания запросов: 
 
 ![image](https://github.com/miamib34ch/HSE-CP-Server/assets/77894393/52ff202b-019a-4dd6-8505-93342c34264d)
-
